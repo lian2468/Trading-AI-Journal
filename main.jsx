@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 // IMGBB FREE IMAGE HOSTING API KEY (מפתח חינמי להעלאת תמונות)
-const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY'; // 05116cd2c809aa58812f297232dfec8d-api.imgbb.com
+const IMGBB_API_KEY = '05116cd2c809aa58812f297232dfec8d';
 
 const PAIR_OPTIONS = [
   'EUR/USD', 'USD/CHF', 'NZD/USD', 'XAU/USD', 'USD/JPY',
