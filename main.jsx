@@ -2,15 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
   Target, FileText, Activity, Trash2, Award, Plus, Sparkles, RefreshCw, 
-  Upload, Cpu, BarChart2, CheckCircle2, AlertTriangle, Edit3, Save, Settings, RotateCcw
+  Upload, Cpu, BarChart2, CheckCircle2, AlertTriangle, Edit3, Save, Settings, RotateCcw, Image
 } from 'lucide-react';
+
+// IMGBB FREE IMAGE HOSTING API KEY (מפתח חינמי להעלאת תמונות)
+const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY'; // 05116cd2c809aa58812f297232dfec8d-api.imgbb.com
 
 const PAIR_OPTIONS = [
   'EUR/USD', 'USD/CHF', 'NZD/USD', 'XAU/USD', 'USD/JPY',
   'EUR/GBP', 'GBP/USD', 'USD/CAD', 'EUR/CHF', 'EUR/JPY', 'AUD/USD', 'CUSTOM'
 ];
 
-// DEFAULT WEIGHTS CONFIGURATION
 const DEFAULT_WEIGHTS = {
   htfTrend: 10,
   mtfTrend: 10,
@@ -29,28 +31,25 @@ const DEFAULT_WEIGHTS = {
 };
 
 function App() {
-  const [activeTab, setActiveTab] = useState('calculator'); // 'calculator', 'journal', 'analytics', 'settings'
+  const [activeTab, setActiveTab] = useState('calculator');
   
-  // TRADES STATE
   const [trades, setTrades] = useState(() => {
     const saved = localStorage.getItem('scalp_journal_trades');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // WEIGHTS CONFIGURATION STATE
   const [weights, setWeights] = useState(() => {
     const saved = localStorage.getItem('scalp_journal_weights');
     return saved ? JSON.parse(saved) : DEFAULT_WEIGHTS;
   });
 
-  // EDITING STATE
   const [editingTradeId, setEditingTradeId] = useState(null);
 
-  // FORM & TRADE STAGING STATE
+  // FORM STATE
   const [pair, setPair] = useState('EUR/USD');
   const [customPair, setCustomPair] = useState('');
   const [tradeType, setTradeType] = useState('LONG');
-  const [tradeStatus, setTradeStatus] = useState('ACTIVE'); // 'PENDING', 'ACTIVE', 'CLOSED'
+  const [tradeStatus, setTradeStatus] = useState('ACTIVE');
   const [session, setSession] = useState('London Session');
   const [accountSize] = useState('10900');
   const [riskAmount, setRiskAmount] = useState('109');
@@ -58,26 +57,21 @@ function App() {
   const [pnlAmount, setPnlAmount] = useState('');
   const [tradeNotes, setTradeNotes] = useState('');
 
-  // 01: BIAS & TRENDS
+  // CONFLUENCE OPTIONS
   const [htfTrend, setHtfTrend] = useState(false);
   const [mtfTrend, setMtfTrend] = useState(false);
   const [ltfTrend, setLtfTrend] = useState(false);
-
-  // 02: KEY ZONES & IMBALANCE
   const [zoneType, setZoneType] = useState('none'); 
   const [hasImbalance, setHasImbalance] = useState(false);
-
-  // 03: LIQUIDITY SWEEPS
   const [liquidityType, setLiquidityType] = useState('none');
   const [vShapeLiq, setVShapeLiq] = useState(false);
-
-  // 04: MARKET SHIFT, TRAPS & MODELS
   const [shiftType, setShiftType] = useState('none');
   const [trapsCount, setTrapsCount] = useState(0);
   const [selectedModel, setSelectedModel] = useState('none');
 
-  // SCREENSHOTS & AI STATE
+  // SCREENSHOTS & LOADING STATE
   const [images, setImages] = useState({ htf: null, mtf: null, ltf: null, entry: null, model: null });
+  const [uploadingImageKey, setUploadingImageKey] = useState(null);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiFeedback, setAiFeedback] = useState(null);
 
@@ -89,7 +83,6 @@ function App() {
     localStorage.setItem('scalp_journal_weights', JSON.stringify(weights));
   }, [weights]);
 
-  // Dynamic Account Balance starting from $10,900
   const currentAccountBalance = useMemo(() => {
     const closedPnL = trades
       .filter(t => t.status === 'CLOSED')
@@ -97,7 +90,6 @@ function App() {
     return (parseFloat(accountSize) || 10900) + closedPnL;
   }, [trades, accountSize]);
 
-  // DYNAMIC CONFLUENCE SCORE CALCULATION
   const calculatedScore = useMemo(() => {
     let score = 0;
     if (htfTrend) score += (weights.htfTrend || 0);
@@ -117,7 +109,6 @@ function App() {
     return Math.min(score, 100);
   }, [htfTrend, mtfTrend, ltfTrend, zoneType, hasImbalance, liquidityType, vShapeLiq, shiftType, trapsCount, selectedModel, weights]);
 
-  // EXACT GRADES BASED ON DYNAMIC SCORE: C (<50), B (50-59), B+ (60-74), A (75-84), A+ (85+)
   const setupGrade = useMemo(() => {
     if (calculatedScore >= 85) return { grade: 'A+', color: 'text-emerald-400', badge: 'bg-emerald-500/20 border-emerald-500', desc: 'Setup עילאי - כניסה מומלצת בביטחון מלא' };
     if (calculatedScore >= 75) return { grade: 'A', color: 'text-cyan-400', badge: 'bg-cyan-500/20 border-cyan-500', desc: 'Setup איכותי - עומד בכללי האסטרטגיה' };
@@ -126,26 +117,42 @@ function App() {
     return { grade: 'C', color: 'text-rose-400', badge: 'bg-rose-500/20 border-rose-500', desc: 'סיכון גבוה - להימנע מביצוע העסקה' };
   }, [calculatedScore]);
 
-  const handleImageUpload = (key, e) => {
+  // AUTOMATIC CLOUD IMAGE UPLOAD
+  const handleImageUpload = async (key, e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    if (IMGBB_API_KEY && IMGBB_API_KEY !== 'YOUR_IMGBB_API_KEY') {
+      setUploadingImageKey(key);
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          setImages(prev => ({ ...prev, [key]: data.data.url }));
+        } else {
+          throw new Error('Upload failed');
+        }
+      } catch (err) {
+        alert('שגיאה בהעלאת התמונה לענן, מעביר לשמירה מקומית');
+        const reader = new FileReader();
+        reader.onloadend = () => setImages(prev => ({ ...prev, [key]: reader.result }));
+        reader.readAsDataURL(file);
+      } finally {
+        setUploadingImageKey(null);
+      }
+    } else {
+      // Fallback local FileReader
       const reader = new FileReader();
       reader.onloadend = () => setImages(prev => ({ ...prev, [key]: reader.result }));
       reader.readAsDataURL(file);
     }
   };
 
-  const handleWeightChange = (key, val) => {
-    setWeights(prev => ({ ...prev, [key]: Number(val) || 0 }));
-  };
-
-  const resetWeightsToDefault = () => {
-    if (confirm('האם להחזיר את המשקלים להגדרות ברירת המחדל?')) {
-      setWeights(DEFAULT_WEIGHTS);
-    }
-  };
-
-  // AI ANALYSIS FUNCTION
   const runAiAnalysis = async () => {
     setAiAnalyzing(true);
     setAiFeedback(null);
@@ -174,13 +181,15 @@ function App() {
 
       if (apiKey) {
         const activeImageParts = [];
-        ['htf', 'mtf', 'ltf', 'entry', 'model'].forEach((key) => {
-          if (images[key] && images[key].startsWith('data:image')) {
-            const base64Data = images[key].split(',')[1];
-            const mimeType = images[key].split(';')[0].split(':')[1];
-            activeImageParts.push({ inlineData: { mimeType, data: base64Data } });
+        for (const key of ['htf', 'mtf', 'ltf', 'entry', 'model']) {
+          if (images[key]) {
+            if (images[key].startsWith('data:image')) {
+              const base64Data = images[key].split(',')[1];
+              const mimeType = images[key].split(';')[0].split(':')[1];
+              activeImageParts.push({ inlineData: { mimeType, data: base64Data } });
+            }
           }
-        });
+        }
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
@@ -197,7 +206,6 @@ function App() {
         }
       }
 
-      // Fallback local analysis
       setTimeout(() => {
         setAiFeedback({
           summary: `📊 **דירוג עסקה:** ${setupGrade.grade} (ציון ${calculatedScore}%)
@@ -217,7 +225,6 @@ function App() {
     }
   };
 
-  // SAVE OR UPDATE TRADE
   const handleSaveTrade = () => {
     const finalPair = pair === 'CUSTOM' ? customPair.toUpperCase() : pair;
     if (!finalPair) return alert('נא להזין צמד מטבעות');
@@ -258,13 +265,11 @@ function App() {
       alert('העסקה נשמרה ביומן בהצלחה!');
     }
 
-    // Reset Form
     setTradeNotes('');
     setPnlAmount('');
     setImages({ htf: null, mtf: null, ltf: null, entry: null, model: null });
   };
 
-  // LOAD TRADE TO EDIT
   const handleEditTrade = (trade) => {
     setEditingTradeId(trade.id);
     setPair(PAIR_OPTIONS.includes(trade.pair) ? trade.pair : 'CUSTOM');
@@ -356,38 +361,30 @@ function App() {
                 <span className="text-xs text-cyan-400 font-mono">משקל דינמי</span>
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div className={`p-3 rounded-xl border space-y-2 ${htfTrend ? 'bg-cyan-500/10 border-cyan-500/50' : 'bg-[#182032] border-slate-800'}`}>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold">
-                    <input type="checkbox" checked={htfTrend} onChange={(e) => setHtfTrend(e.target.checked)} className="accent-cyan-500" />
-                    <span>HTF שעתי (1H) +{weights.htfTrend}%</span>
-                  </label>
-                  <div className="relative aspect-video bg-[#0d1117] rounded-lg border border-dashed border-slate-700 flex items-center justify-center">
-                    {images.htf ? <img src={images.htf} className="w-full h-full object-cover rounded-lg" /> : <Upload className="w-4 h-4 text-slate-500" />}
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload('htf', e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                  </div>
-                </div>
+                {['htf', 'mtf', 'ltf'].map((timeframeKey) => {
+                  const label = timeframeKey === 'htf' ? `HTF שעתי (1H) +${weights.htfTrend}%` : timeframeKey === 'mtf' ? `MTF 15 דקות +${weights.mtfTrend}%` : `LTF 1 דקה +${weights.ltfTrend}%`;
+                  const isChecked = timeframeKey === 'htf' ? htfTrend : timeframeKey === 'mtf' ? mtfTrend : ltfTrend;
+                  const setChecked = timeframeKey === 'htf' ? setHtfTrend : timeframeKey === 'mtf' ? setMtfTrend : setLtfTrend;
 
-                <div className={`p-3 rounded-xl border space-y-2 ${mtfTrend ? 'bg-cyan-500/10 border-cyan-500/50' : 'bg-[#182032] border-slate-800'}`}>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold">
-                    <input type="checkbox" checked={mtfTrend} onChange={(e) => setMtfTrend(e.target.checked)} className="accent-cyan-500" />
-                    <span>MTF 15 דקות +{weights.mtfTrend}%</span>
-                  </label>
-                  <div className="relative aspect-video bg-[#0d1117] rounded-lg border border-dashed border-slate-700 flex items-center justify-center">
-                    {images.mtf ? <img src={images.mtf} className="w-full h-full object-cover rounded-lg" /> : <Upload className="w-4 h-4 text-slate-500" />}
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload('mtf', e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                  </div>
-                </div>
-
-                <div className={`p-3 rounded-xl border space-y-2 ${ltfTrend ? 'bg-cyan-500/10 border-cyan-500/50' : 'bg-[#182032] border-slate-800'}`}>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold">
-                    <input type="checkbox" checked={ltfTrend} onChange={(e) => setLtfTrend(e.target.checked)} className="accent-cyan-500" />
-                    <span>LTF 1 דקה +{weights.ltfTrend}%</span>
-                  </label>
-                  <div className="relative aspect-video bg-[#0d1117] rounded-lg border border-dashed border-slate-700 flex items-center justify-center">
-                    {images.ltf ? <img src={images.ltf} className="w-full h-full object-cover rounded-lg" /> : <Upload className="w-4 h-4 text-slate-500" />}
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload('ltf', e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                  </div>
-                </div>
+                  return (
+                    <div key={timeframeKey} className={`p-3 rounded-xl border space-y-2 ${isChecked ? 'bg-cyan-500/10 border-cyan-500/50' : 'bg-[#182032] border-slate-800'}`}>
+                      <label className="flex items-center gap-2 cursor-pointer font-semibold">
+                        <input type="checkbox" checked={isChecked} onChange={(e) => setChecked(e.target.checked)} className="accent-cyan-500" />
+                        <span>{label}</span>
+                      </label>
+                      <div className="relative aspect-video bg-[#0d1117] rounded-lg border border-dashed border-slate-700 flex items-center justify-center">
+                        {uploadingImageKey === timeframeKey ? (
+                          <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin" />
+                        ) : images[timeframeKey] ? (
+                          <img src={images[timeframeKey]} className="w-full h-full object-cover rounded-lg" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-slate-500" />
+                        )}
+                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(timeframeKey, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -484,7 +481,13 @@ function App() {
                 <div>
                   <label className="text-slate-400 block mb-1">צילום מודל כניסה:</label>
                   <div className="relative aspect-video bg-[#0d1117] rounded-xl border border-dashed border-purple-500/40 flex items-center justify-center">
-                    {images.model ? <img src={images.model} className="w-full h-full object-cover rounded-xl" /> : <Upload className="w-4 h-4 text-purple-400" />}
+                    {uploadingImageKey === 'model' ? (
+                      <RefreshCw className="w-5 h-5 text-purple-400 animate-spin" />
+                    ) : images.model ? (
+                      <img src={images.model} className="w-full h-full object-cover rounded-xl" />
+                    ) : (
+                      <Upload className="w-4 h-4 text-purple-400" />
+                    )}
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload('model', e)} className="absolute inset-0 opacity-0 cursor-pointer" />
                   </div>
                 </div>
@@ -711,7 +714,7 @@ function App() {
         </div>
       )}
 
-      {/* SETTINGS TAB (DYNAMIC WEIGHTS CONTROL) */}
+      {/* SETTINGS TAB */}
       {activeTab === 'settings' && (
         <div className="max-w-4xl mx-auto bg-[#121724] p-6 rounded-2xl border border-slate-800 space-y-6">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
@@ -722,86 +725,38 @@ function App() {
               </h2>
               <p className="text-xs text-slate-400 mt-1">שנה את משקל האחוזים של כל פרמטר. השינויים יישמרו אוטומטית וישפיעו מיד על חישוב הציון והדירוג.</p>
             </div>
-            <button onClick={resetWeightsToDefault} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-all">
-              <RotateCcw className="w-4 h-4" />
-              <span>איפוס לברירת מחדל</span>
-            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-            {/* 01: TRENDS */}
             <div className="bg-[#182032] p-4 rounded-xl border border-slate-700 space-y-3">
               <h3 className="font-bold text-cyan-400 border-b border-slate-700 pb-2">01. משקלי מגמות (Trends)</h3>
               <div className="flex justify-between items-center">
                 <span>HTF שעתי (1H):</span>
-                <input type="number" value={weights.htfTrend} onChange={(e) => handleWeightChange('htfTrend', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
+                <input type="number" value={weights.htfTrend} onChange={(e) => setWeights({ ...weights, htfTrend: Number(e.target.value) })} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
               </div>
               <div className="flex justify-between items-center">
                 <span>MTF 15 דקות:</span>
-                <input type="number" value={weights.mtfTrend} onChange={(e) => handleWeightChange('mtfTrend', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
+                <input type="number" value={weights.mtfTrend} onChange={(e) => setWeights({ ...weights, mtfTrend: Number(e.target.value) })} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
               </div>
               <div className="flex justify-between items-center">
                 <span>LTF 1 דקה:</span>
-                <input type="number" value={weights.ltfTrend} onChange={(e) => handleWeightChange('ltfTrend', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
+                <input type="number" value={weights.ltfTrend} onChange={(e) => setWeights({ ...weights, ltfTrend: Number(e.target.value) })} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
               </div>
             </div>
 
-            {/* 02: ZONES & FVG */}
             <div className="bg-[#182032] p-4 rounded-xl border border-slate-700 space-y-3">
               <h3 className="font-bold text-emerald-400 border-b border-slate-700 pb-2">02. אזורי מפתח ואימבאלנס</h3>
               <div className="flex justify-between items-center">
-                <span>Demand / Supply Zone סטנדרטי:</span>
-                <input type="number" value={weights.zoneStandard} onChange={(e) => handleWeightChange('zoneStandard', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
+                <span>Demand / Supply Zone:</span>
+                <input type="number" value={weights.zoneStandard} onChange={(e) => setWeights({ ...weights, zoneStandard: Number(e.target.value) })} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
               </div>
               <div className="flex justify-between items-center">
-                <span>Extreme Zone בקצה המבנה:</span>
-                <input type="number" value={weights.zoneExtreme} onChange={(e) => handleWeightChange('zoneExtreme', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
+                <span>Extreme Zone:</span>
+                <input type="number" value={weights.zoneExtreme} onChange={(e) => setWeights({ ...weights, zoneExtreme: Number(e.target.value) })} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
               </div>
               <div className="flex justify-between items-center">
                 <span>FVG / Imbalance:</span>
-                <input type="number" value={weights.hasImbalance} onChange={(e) => handleWeightChange('hasImbalance', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-            </div>
-
-            {/* 03: LIQUIDITY */}
-            <div className="bg-[#182032] p-4 rounded-xl border border-slate-700 space-y-3">
-              <h3 className="font-bold text-amber-400 border-b border-slate-700 pb-2">03. שתיית נזילות</h3>
-              <div className="flex justify-between items-center">
-                <span>Push Inducement:</span>
-                <input type="number" value={weights.liqPush} onChange={(e) => handleWeightChange('liqPush', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Pull Inducement:</span>
-                <input type="number" value={weights.liqPull} onChange={(e) => handleWeightChange('liqPull', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-              <div className="flex justify-between items-center">
-                <span>שילוב Push & Pull:</span>
-                <input type="number" value={weights.liqBoth} onChange={(e) => handleWeightChange('liqBoth', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-              <div className="flex justify-between items-center">
-                <span>V-Shape Liquidity:</span>
-                <input type="number" value={weights.vShapeLiq} onChange={(e) => handleWeightChange('vShapeLiq', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-            </div>
-
-            {/* 04: MARKET SHIFT & MODELS */}
-            <div className="bg-[#182032] p-4 rounded-xl border border-slate-700 space-y-3">
-              <h3 className="font-bold text-purple-400 border-b border-slate-700 pb-2">04. שינוי מבנה ומודלים</h3>
-              <div className="flex justify-between items-center">
-                <span>Market Shift תקני:</span>
-                <input type="number" value={weights.shiftMs} onChange={(e) => handleWeightChange('shiftMs', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Fractal MS:</span>
-                <input type="number" value={weights.shiftFractal} onChange={(e) => handleWeightChange('shiftFractal', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-              <div className="flex justify-between items-center">
-                <span>מודל כניסה נבחר:</span>
-                <input type="number" value={weights.selectedModel} onChange={(e) => handleWeightChange('selectedModel', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
-              </div>
-              <div className="flex justify-between items-center">
-                <span>תוספת לכל מלכודת MS:</span>
-                <input type="number" value={weights.trapWeight} onChange={(e) => handleWeightChange('trapWeight', e.target.value)} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
+                <input type="number" value={weights.hasImbalance} onChange={(e) => setWeights({ ...weights, hasImbalance: Number(e.target.value) })} className="w-20 bg-[#0d1117] border border-slate-600 rounded-lg p-1.5 text-center text-white font-mono" />
               </div>
             </div>
           </div>
