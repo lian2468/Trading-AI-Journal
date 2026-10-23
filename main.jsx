@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
   Target, FileText, Activity, Trash2, Award, Plus, Sparkles, RefreshCw, 
-  Upload, Cpu, BarChart2, CheckCircle2, AlertTriangle, Edit3, Save, Settings, RotateCcw, AlertCircle
+  Upload, Cpu, BarChart2, CheckCircle2, AlertTriangle, Edit3, Save, Settings, DollarSign
 } from 'lucide-react';
 
 const IMGBB_API_KEY = '05116cd2c809aa58812f297232dfec8d';
@@ -44,6 +44,12 @@ function App() {
     return saved ? JSON.parse(saved) : DEFAULT_WEIGHTS;
   });
 
+  // INITIAL ACCOUNT BALANCE STATE
+  const [initialAccountSize, setInitialAccountSize] = useState(() => {
+    const saved = localStorage.getItem('scalp_journal_account_size');
+    return saved ? saved : '10900';
+  });
+
   const [editingTradeId, setEditingTradeId] = useState(null);
 
   // FORM STATE
@@ -52,7 +58,6 @@ function App() {
   const [tradeType, setTradeType] = useState('LONG');
   const [tradeStatus, setTradeStatus] = useState('ACTIVE');
   const [session, setSession] = useState('London Session');
-  const [accountSize] = useState('10900');
   const [riskAmount, setRiskAmount] = useState('109');
   const [tradeResult, setTradeResult] = useState('WIN');
   const [pnlAmount, setPnlAmount] = useState('');
@@ -65,13 +70,10 @@ function App() {
   const [htfTrend, setHtfTrend] = useState(false);
   const [mtfTrend, setMtfTrend] = useState(false);
   const [ltfTrend, setLtfTrend] = useState(false);
-  
-  // 02: ZONES, FLIP, PRICING & FVG
   const [zoneType, setZoneType] = useState('none'); 
   const [isFlipZone, setIsFlipZone] = useState(false);
-  const [isPricingValid, setIsPricingValid] = useState(false); // Discount for LONG / Premium for SHORT
+  const [isPricingValid, setIsPricingValid] = useState(false);
   const [hasImbalance, setHasImbalance] = useState(false);
-  
   const [liquidityType, setLiquidityType] = useState('none');
   const [vShapeLiq, setVShapeLiq] = useState(false);
   const [shiftType, setShiftType] = useState('none');
@@ -92,30 +94,32 @@ function App() {
     localStorage.setItem('scalp_journal_weights', JSON.stringify(weights));
   }, [weights]);
 
+  useEffect(() => {
+    localStorage.setItem('scalp_journal_account_size', initialAccountSize);
+  }, [initialAccountSize]);
+
+  // Dynamic Account Balance starting from User Defined Initial Size
   const currentAccountBalance = useMemo(() => {
     const closedPnL = trades
       .filter(t => t.status === 'CLOSED')
       .reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-    return (parseFloat(accountSize) || 10900) + closedPnL;
-  }, [trades, accountSize]);
+    return (parseFloat(initialAccountSize) || 10900) + closedPnL;
+  }, [trades, initialAccountSize]);
 
   const calculatedScore = useMemo(() => {
     let score = 0;
     if (htfTrend) score += (weights.htfTrend || 0);
     if (mtfTrend) score += (weights.mtfTrend || 0);
     if (ltfTrend) score += (weights.ltfTrend || 0);
-    
     if (zoneType === 'standard') score += (weights.zoneStandard || 0);
     if (zoneType === 'extreme') score += (weights.zoneExtreme || 0);
     if (isFlipZone) score += (weights.isFlipZone || 0);
     if (isPricingValid) score += (weights.isPricingValid || 0);
     if (hasImbalance) score += (weights.hasImbalance || 0);
-
     if (liquidityType === 'push') score += (weights.liqPush || 0);
     if (liquidityType === 'pull') score += (weights.liqPull || 0);
     if (liquidityType === 'both') score += (weights.liqBoth || 0);
     if (vShapeLiq) score += (weights.vShapeLiq || 0);
-    
     if (shiftType === 'ms') score += (weights.shiftMs || 0);
     if (shiftType === 'fractal') score += (weights.shiftFractal || 0);
     score += (trapsCount * (weights.trapWeight || 0));
@@ -164,6 +168,7 @@ function App() {
     }
   };
 
+  // ADVANCED DEEP GEMINI AI VISION & BRAD MECHANICS ANALYSIS
   const runAiAnalysis = async () => {
     setAiAnalyzing(true);
     setAiFeedback(null);
@@ -171,38 +176,56 @@ function App() {
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       
-      const promptText = `אתה אנליסט מומחה למסחר לפי שיטת 1% Percent Club (Brad) ו-SMC/ICT.
-בצע ניתוח מקיף לניתוח לפני כניסה לעסקה (Pre-Trade Staging):
-
-פרטי ה-Setup:
-- צמד: ${pair === 'CUSTOM' ? customPair : pair} | כיוון: ${tradeType} | סשן: ${session}
-- ציון Confluence: ${calculatedScore}% | דירוג עסקה מחושב: ${setupGrade.grade}
-- מגמות: HTF 1H=${htfTrend ? 'כן' : 'לא'}, MTF 15m=${mtfTrend ? 'כן' : 'לא'}, LTF 1m=${ltfTrend ? 'כן' : 'לא'}
-- אזור: ${zoneType}, Flip Zone: ${isFlipZone ? 'כן' : 'לא'}, פרימיום/דיסקונט מוצדק: ${isPricingValid ? 'כן' : 'לא'}, Imbalance (FVG): ${hasImbalance ? 'כן' : 'לא'}
-- נזילות: ${liquidityType}, V-Shape: ${vShapeLiq ? 'כן' : 'לא'}
-- שיפט: ${shiftType}, מלכודות: ${trapsCount}, מודל כניסה: ${selectedModel}
-- בדיקת הודעות כלכליות: ${newsChecked ? 'אושר ע"י הסוחר' : 'טרם אושר'}
-- יתרת חשבון: $${currentAccountBalance}, סיכון 1%: $${riskAmount}
-- הערות ודגשים מהסוחר: "${tradeNotes || 'אין הערות נוספות'}"
-
-הנחיות לתשובה בעברית:
-1. **דירוג והערכת Setup:** האם הדירוג (${setupGrade.grade}) מוצדק והאם הניתוח בוצע נכון?
-2. **ניתוח תמונות והקשר:** האם מבנה השוק והכניסה תואמים את המודל הנבחר?
-3. **המלצה סופית וחד-משמעית:** רשום במפורש: [כניסה מומלצת / להמתין לאישור נוסף / להימנע מביצוע].
-4. **ניהול סיכונים:** וודא יעד רווח מינימלי של 3R ($${(parseFloat(riskAmount) * 3).toFixed(0)}).`;
-
-      if (apiKey) {
-        const activeImageParts = [];
-        for (const key of ['htf', 'mtf', 'ltf', 'entry', 'model']) {
-          if (images[key]) {
-            if (images[key].startsWith('data:image')) {
-              const base64Data = images[key].split(',')[1];
-              const mimeType = images[key].split(';')[0].split(':')[1];
-              activeImageParts.push({ inlineData: { mimeType, data: base64Data } });
+      const activeImageParts = [];
+      
+      // Convert image URLs to Base64 or process for API
+      for (const key of ['htf', 'mtf', 'ltf', 'entry', 'model']) {
+        if (images[key]) {
+          if (images[key].startsWith('data:image')) {
+            const base64Data = images[key].split(',')[1];
+            const mimeType = images[key].split(';')[0].split(':')[1];
+            activeImageParts.push({ inlineData: { mimeType, data: base64Data } });
+          } else if (images[key].startsWith('http')) {
+            try {
+              const imgRes = await fetch(images[key]);
+              const blob = await imgRes.blob();
+              const reader = new FileReader();
+              await new Promise((resolve) => {
+                reader.onloadend = () => {
+                  const base64Data = reader.result.split(',')[1];
+                  activeImageParts.push({ inlineData: { mimeType: blob.type || 'image/png', data: base64Data } });
+                  resolve();
+                };
+                reader.readAsDataURL(blob);
+              });
+            } catch (e) {
+              console.log('Error fetching cloud image for AI', e);
             }
           }
         }
+      }
 
+      const promptText = `אתה בכיר האנליסטים לשיטת 1% Percent Club של Brad וניתוח SMC/ICT.
+תפקידך לנתח את ה-Setup המצורף בצורה ביקורתית, עמוקה ומבוססת על המכניקה של השוק (Market Mechanics).
+
+פרטי העסקה והאינדיקטורים:
+- צמד: ${pair === 'CUSTOM' ? customPair : pair} | כיוון: ${tradeType} | סשן: ${session}
+- ציון Confluence: ${calculatedScore}% | דירוג מחושב: ${setupGrade.grade}
+- סנכרון מגמות: HTF 1H=${htfTrend ? 'כן' : 'לא'}, MTF 15m=${mtfTrend ? 'כן' : 'לא'}, LTF 1m=${ltfTrend ? 'כן' : 'לא'}
+- אזור מפתח: סוג האזור=${zoneType}, Flip Zone=${isFlipZone ? 'כן' : 'לא'}, Pricing valid=${isPricingValid ? 'כן (Discount/Premium)' : 'לא'}, FVG/Imbalance=${hasImbalance ? 'כן' : 'לא'}
+- נזילות: סוג=${liquidityType}, V-Shape Rejection=${vShapeLiq ? 'כן' : 'לא'}
+- שיפט ומודל: Shift=${shiftType}, traps=${trapsCount}, model=${selectedModel}
+- בדיקת חדשות: ${newsChecked ? 'אושר' : 'לא אושר'}
+- הערות ודגשים מהסוחר בתיבת הטקסט: "${tradeNotes || 'אין הערות נוספות'}"
+
+הנחיות קשיחות לניתוח:
+1. **ניתוח תמונות חזותי (Vision):** אם צורפו תמונות, נתח את הגרפים! בדוק האם רואים Sweep נקי של הנזילות, האם הדחייה חדה (V-Shape), האם גוף הנר נסגר בתוך המבנה, והאם המרקט שיפט ב-LTF אמיתי ולא פייק.
+2. **התייחסות לטקסט הסוחר:** התייחס באופן ספציפי להערות שכתב הסוחר בתיבה ("${tradeNotes || 'אין הערות'}").
+3. **ביקורת עקביות (Consistency Check):** האם הנתונים שהסוחר סימן במחשבון מתאימים למה שרואים בגרפים?
+4. **המלצת כניסה סופית וחד-משמעית:** רשום בבירור באחת מהאפשרויות: [🟢 כניסה מומלצת / 🟡 להמתין לאישור נוסף / 🔴 להימנע מביצוע].
+5. **יעד סיכון/סיכוי:** וודא יעד רווח מינימלי של 3R ($${(parseFloat(riskAmount) * 3).toFixed(0)}).`;
+
+      if (apiKey) {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -218,13 +241,15 @@ function App() {
         }
       }
 
+      // Fallback response with specific text consideration
       setTimeout(() => {
         setAiFeedback({
-          summary: `📊 **דירוג עסקה:** ${setupGrade.grade} (ציון ${calculatedScore}%)
-• **הערכת ניתוח:** ${calculatedScore >= 75 ? 'ה-Setup מתוכנן היטב לפי כללי ה-1% Percent Club.' : 'ה-Setup כולל חסרים במרכיבי Confluence מרכזיים.'}
-• **סנכרון מגמות:** ${htfTrend && mtfTrend ? 'סנכרון מלא בין 1H ל-15m.' : 'חסר סנכרון מגמה מלא.'}
-• **אזור ומתחור:** ${isFlipZone ? 'זוהה Flip Zone.' : ''} ${isPricingValid ? 'מיקום תמחור תקין (Discount/Premium).' : ''}
-• **המלצה סופית:** ${calculatedScore >= 75 ? '🟢 **כניסה מומלצת** (וודא Stop Loss מוגדר ויעד 3R)' : calculatedScore >= 60 ? '🟡 **להמתין לאישור נוסף ב-1m**' : '🔴 **להימנע מביצוע העסקה**'}
+          summary: `📊 **ניתוח מקיף (Brad Mechanics):** דירוג ${setupGrade.grade} (${calculatedScore}%)
+
+• **התייחסות להערת הסוחר:** "${tradeNotes || 'לא הוכנסו הערות נוספות'}".
+• **ניתוח מבנה אזור (Zone & Liquidity):** ${isFlipZone ? 'זיהוי Flip Zone מוסיף אמינות גבוהה לאזור.' : 'מומלץ לוודא שה-Zone לא נשבר ב-HTF.'} ${vShapeLiq ? 'דחיית V-Shape מראה מעורבות מוסדית חזקה.' : ''}
+• **תמחור (Discount/Premium):** ${isPricingValid ? 'מיקום הכניסה אידיאלי מבחינת מתחור.' : 'שים לב: מומלץ למדוד Fibonacci לוודא כניסה מעבר ל-50%.'}
+• **המלצה סופית:** ${calculatedScore >= 75 ? '🟢 **כניסה מומלצת** - עומד בכללי 1% Percent Club.' : calculatedScore >= 60 ? '🟡 **להמתין לאישור נוסף ב-1m**' : '🔴 **להימנע מביצוע העסקה**'}
 • **יעד רווח 3R מומלץ:** $${(parseFloat(riskAmount) * 3).toFixed(0)}`,
           grade: setupGrade.grade,
           status: 'local'
@@ -299,7 +324,7 @@ function App() {
     setTradeResult(trade.result === 'PENDING' ? 'WIN' : trade.result);
     setPnlAmount(trade.pnl);
     setTradeNotes(trade.notes || '');
-    setNewsChecked(true); // Pre-check on edit
+    setNewsChecked(true);
     if (trade.screenshots) setImages(trade.screenshots);
     setActiveTab('calculator');
   };
@@ -335,10 +360,10 @@ function App() {
           </div>
         </div>
 
-        {/* ACCOUNT BALANCE */}
+        {/* ACCOUNT BALANCE DISPLAY */}
         <div className="flex gap-4 items-center bg-[#182032] px-4 py-2 rounded-xl border border-slate-700">
           <div>
-            <span className="text-[10px] text-slate-400 block">יתרת חשבון (התחלה $10,900)</span>
+            <span className="text-[10px] text-slate-400 block">יתרת חשבון (התחלה ${parseFloat(initialAccountSize).toLocaleString()})</span>
             <span className="text-lg font-bold font-mono text-emerald-400">${currentAccountBalance.toLocaleString()}</span>
           </div>
           <div className="border-r border-slate-700 pr-4">
@@ -426,7 +451,6 @@ function App() {
                 <div className="space-y-2">
                   <label className="text-slate-400 block mb-1">מאפייני אזור נוספים:</label>
                   
-                  {/* FLIP ZONE CHECKBOX */}
                   <label onClick={() => setIsFlipZone(!isFlipZone)} className={`cursor-pointer p-2.5 rounded-xl border flex items-center gap-3 transition-all ${isFlipZone ? 'bg-emerald-500/20 border-emerald-500' : 'bg-[#182032] border-slate-800'}`}>
                     <input type="checkbox" checked={isFlipZone} onChange={() => {}} className="accent-emerald-500" />
                     <div>
@@ -435,7 +459,6 @@ function App() {
                     </div>
                   </label>
 
-                  {/* PREMIUM / DISCOUNT CHECKBOX */}
                   <label onClick={() => setIsPricingValid(!isPricingValid)} className={`cursor-pointer p-2.5 rounded-xl border flex items-center gap-3 transition-all ${isPricingValid ? 'bg-emerald-500/20 border-emerald-500' : 'bg-[#182032] border-slate-800'}`}>
                     <input type="checkbox" checked={isPricingValid} onChange={() => {}} className="accent-emerald-500" />
                     <div>
@@ -444,7 +467,6 @@ function App() {
                     </div>
                   </label>
 
-                  {/* FVG / IMBALANCE CHECKBOX */}
                   <label onClick={() => setHasImbalance(!hasImbalance)} className={`cursor-pointer p-2.5 rounded-xl border flex items-center gap-3 transition-all ${hasImbalance ? 'bg-emerald-500/20 border-emerald-500' : 'bg-[#182032] border-slate-800'}`}>
                     <input type="checkbox" checked={hasImbalance} onChange={() => {}} className="accent-emerald-500" />
                     <div>
@@ -533,6 +555,7 @@ function App() {
                 </div>
               </div>
 
+              {/* TEXTAREA FOR AI ANALYSIS */}
               <div className="pt-3 border-t border-slate-800">
                 <label className="text-xs text-slate-300 block mb-1 font-semibold">הערות / דגשים לניתוח ה-AI:</label>
                 <textarea 
@@ -567,7 +590,7 @@ function App() {
                 {aiAnalyzing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-purple-200" />
-                    <span>מנתח כעת ב-Gemini AI...</span>
+                    <span>מנתח כעת ב-Gemini AI Vision...</span>
                   </>
                 ) : (
                   <>
@@ -764,16 +787,33 @@ function App() {
         </div>
       )}
 
-      {/* SETTINGS TAB */}
+      {/* SETTINGS TAB WITH ACCOUNT SIZE CONTROL */}
       {activeTab === 'settings' && (
         <div className="max-w-4xl mx-auto bg-[#121724] p-6 rounded-2xl border border-slate-800 space-y-6">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
             <div>
               <h2 className="font-bold text-base text-white flex items-center gap-2">
                 <Settings className="w-5 h-5 text-cyan-400" />
-                הגדרות משקלי אסטרטגיה (Confluence Weights)
+                הגדרות מודל וחשבון (Settings)
               </h2>
-              <p className="text-xs text-slate-400 mt-1">שנה את משקל האחוזים של כל פרמטר. השינויים יישמרו אוטומטית וישפיעו מיד על חישוב הציון והדירוג.</p>
+              <p className="text-xs text-slate-400 mt-1">שנה את שווי החשבון המקורי ואת משקלי ה-Confluence לפי צרכי האסטרטגיה.</p>
+            </div>
+          </div>
+
+          {/* INITIAL ACCOUNT BALANCE CONTROL */}
+          <div className="bg-[#182032] p-4 rounded-xl border border-slate-700 space-y-2">
+            <label className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4" />
+              שווי חשבון התחלתי ($):
+            </label>
+            <div className="flex items-center gap-3">
+              <input 
+                type="number" 
+                value={initialAccountSize} 
+                onChange={(e) => setInitialAccountSize(e.target.value)} 
+                className="w-48 bg-[#0d1117] border border-slate-600 rounded-xl p-2 text-white font-mono font-bold text-sm" 
+              />
+              <span className="text-[10px] text-slate-400">שינוי סכום זה יעדכן מחדש את יתרת החשבון וה-1% סיכון בראש המסך.</span>
             </div>
           </div>
 
