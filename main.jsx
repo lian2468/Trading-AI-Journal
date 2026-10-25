@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const IMGBB_API_KEY = '05116cd2c809aa58812f297232dfec8d';
-const GEMINI_API_KEY_2 = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 const PAIR_OPTIONS = [
   'EUR/USD', 'USD/CHF', 'NZD/USD', 'XAU/USD', 'USD/JPY',
