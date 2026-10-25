@@ -1,4 +1,4 @@
-import config from './config.json';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
