@@ -1,3 +1,4 @@
+import config from './config.json';
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
@@ -6,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const IMGBB_API_KEY = '05116cd2c809aa58812f297232dfec8d';
-const GEMINI_API_KEY = 'AQ.Ab8RN6IntEoxYQAxnHNxD3FwoBAD1HeJVpsZifrFA-y5Qwj0Tw';
+const GEMINI_API_KEY = config.GEMINI_API_KEY;
 
 const PAIR_OPTIONS = [
   'EUR/USD', 'USD/CHF', 'NZD/USD', 'XAU/USD', 'USD/JPY',
