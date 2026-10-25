@@ -206,7 +206,7 @@ function App() {
 
       const promptText = `אתה אנליסט מומחה למסחר בשיטת 1% Percent Club של Brad (SMC/ICT). עליך לתת חוות דעת מקצועית, מעמיקה ואמיתית בלבד על ה-Setup הבא. פרטי הטרייד: צמד: ${pair === 'CUSTOM' ? customPair : pair} | כיוון: ${tradeType} | סשן: ${session} | ציון Confluence: ${calculatedScore}% | דירוג: ${setupGrade.grade} | מגמות: HTF 1H=${htfTrend ? 'כן' : 'לא'}, MTF 15m=${mtfTrend ? 'כן' : 'לא'}, LTF 1m=${ltfTrend ? 'כן' : 'לא'} | אזור: ${zoneType}, Flip Zone=${isFlipZone ? 'כן' : 'לא'}, Pricing Valid=${isPricingValid ? 'כן' : 'לא'}, Imbalance=${hasImbalance ? 'כן' : 'לא'} | נזילות: ${liquidityType}, V-Shape=${vShapeLiq ? 'כן' : 'לא'} | שיפט ומודל: Shift=${shiftType}, מלכודות=${trapsCount}, מודל=${selectedModel} | הערות מיוחדות מהסוחר: "${tradeNotes || 'אין הערות נוספות'}". הנחיות לתשובה בעברית: 1. ענה ישירות ובמפורט על השאלה/הערה שהסוחר רשם: "${tradeNotes}". 2. אם מצורפות תמונות, תאר מה רואים בהן! התייחס למבנה השוק, שבירת מבנה (MS), שתיית נזילות והאם הדחייה נקייה. 3. ציין אם יש סתירה בין הנתונים שסומנו לתמונות. 4. המלצה סופית חד-משמעית: [🟢 כניסה מומלצת / 🟡 להמתין לאישור נוסף / 🔴 להימנע מביצוע].`;
 
-     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
+     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, ...activeImageParts] }] })
