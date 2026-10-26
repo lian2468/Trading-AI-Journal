@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
@@ -7,7 +6,6 @@ import {
 } from 'lucide-react';
 
 const IMGBB_API_KEY = '05116cd2c809aa58812f297232dfec8d';
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
 
 const PAIR_OPTIONS = [
   'EUR/USD', 'USD/CHF', 'NZD/USD', 'XAU/USD', 'USD/JPY',
@@ -144,7 +142,7 @@ function App() {
       try {
         const formData = new FormData();
         formData.append('image', file);
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        const res = await fetch(`https://api.api-imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
           method: 'POST',
           body: formData
         });
@@ -168,13 +166,17 @@ function App() {
     }
   };
 
-  // DIRECT GEMINI AI VISION CALL USING HARDCODED KEY
+  // GEMINI AI VISION CALL
   const runAiAnalysis = async () => {
     setAiAnalyzing(true);
     setAiFeedback(null);
 
     try {
-      const apiKey = GEMINI_API_KEY;
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is not defined in environment variables");
+      }
 
       const activeImageParts = [];
       
@@ -204,15 +206,13 @@ function App() {
         }
       }
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const promptText = `1% אתה אנליסט מומחה בשיטת Percent Club של Brad (SMC/ICT). צמד הטרייד: ${pair === 'CUSTOM' ? customPair : pair} | כיוון: ${tradeType} | סשן: ${session}. תן חוות דעת מקצועית ומקיפה בעברית על ה-Setup הנתון (ציון מחושב: ${calculatedScore}% - דירוג: ${setupGrade.grade}). הערות הסוחר: ${tradeNotes || 'אין'}`;
 
-const promptText = `1% אתה אנליסט מומחה...`;
-
-const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, ...activeImageParts] }] })
-});
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, ...activeImageParts] }] })
+      });
 
       const result = await response.json();
       const answer = result?.candidates?.[0]?.content?.parts?.[0]?.text;
